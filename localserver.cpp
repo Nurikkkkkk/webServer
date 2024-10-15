@@ -6,8 +6,42 @@ server::server() {
     hints.ai_family = AF_INET; // IPv4
     hints.ai_socktype = SOCK_STREAM; // because we use TCP otherwise SOCK_DGRAM for UDP
     hints.ai_protocol = IPPROTO_TCP; // TCP 
-    hints.ai_flags = AI_PASSIVE; 
+    hints.ai_flags = AI_PASSIVE; // listening socket
+    loadFiles(fileSystem, "Files/HTML");
+    std::cout << "Construction fileSystem: " << fileSystem.size() << std::endl; 
 }
+
+void server::loadFiles(std::unordered_set<std::string> &fileSys, path targetDirectory) {
+
+    // if doesn't exists -> create directory
+    if (!exists(targetDirectory)) {
+        create_directory(targetDirectory);
+    }
+
+    // traverse a directory 
+    for (const auto& file : directory_iterator(targetDirectory)) {
+        if (is_directory(file)) {
+            loadFiles(fileSys, file); // recursively traverse if it is a directory
+        } else {
+            std::string fileName = "";
+            std::string path = file.path().string();
+            // get file name
+            for (size_t i = 0; i < path.size(); i++) {
+                if (path[i] == '/') {
+                    fileName = "";
+                } else {
+                    fileName += path[i];
+                }
+            }
+            fileSys.insert(fileName);
+        }
+    }
+}
+
+/*
+
+
+*/
 
 int server::startLocalServer() {
     std::cout << "Initializing server..." << std::endl;
@@ -117,7 +151,7 @@ int server::requestHandler(const std::string req) {
     return 0;
 }
 
-std::vector<std::string> server::requestParser(const std::string req){
+std::vector<std::string> server::requestParser(const std::string req) {
     std::vector<std::string> result; 
 
     // define request type 
