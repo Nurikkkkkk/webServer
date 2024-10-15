@@ -6,23 +6,29 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 #include <string>
+#include <vector>
 
 #pragma comment(lib, "Ws2_32.lib")
 
-#define DEFAULT_PORT 8080
-#define DEFAULT_IP "127.0.0.1"
-#define BUFF_LEN 30720 
+#define DEFAULT_PORT "8080"
+#define BUFF_LEN 1024 
 
 class server {
     WSADATA wsaData;
     SOCKET listenSock = INVALID_SOCKET; 
     SOCKET clientSock = INVALID_SOCKET;
-    struct sockaddr_in hints;  
-    int serverLen;
+    struct addrinfo hints;
+    struct addrinfo *addrResult = nullptr;
 
+    // handle request
+    int requestHandler(const std::string req);
+    // request parser 
+    std::vector<std::string> requestParser(const std::string req);
 public:
 
+    // default constructor
     server(); 
+    // start server
     int startLocalServer();
 };
 

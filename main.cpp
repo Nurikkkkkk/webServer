@@ -1,5 +1,7 @@
 #include "localserver.h"
 
+//-lwsock32 -lWs2_32  for compiling
+
 int main(){
 
     server server; 
