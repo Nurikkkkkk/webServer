@@ -9,6 +9,11 @@ server::server() {
     hints.ai_flags = AI_PASSIVE; // listening socket
     loadFiles(fileSystem, "Files\\HTML");
     std::cout << "Constructing fileSystem: " << fileSystem.size() << std::endl; 
+
+    // remove comments if you want to see the contents of the container 
+    // for (auto el : fileSystem) {
+    //     std::cout << el.first << " : " << el.second << std::endl;
+    // }
 }
 
 
@@ -53,7 +58,7 @@ void server::response(const std::string path, int code){
         serverMsg = HTTP404;
     } else if (code == 200) {
         serverMsg = HTTP200;
-        if (path != "") {
+        if (path != "favicon.ico") {
             std::ifstream read; // open file read only 
             read.open(path);
             if (!read.is_open()) {
@@ -61,13 +66,12 @@ void server::response(const std::string path, int code){
             } else {
                 std::string line = "";
                 while (std::getline(read, line)) {
-                    std::cout << line << std::endl;
+                    page.append(line+"\n");
                 }
                 serverMsg.append(std::to_string(page.size())); 
                 serverMsg.append("\r\n\r\n");
                 serverMsg.append(page);
             }
-            std::cout << page << std::endl;
             read.close(); // close read file
         }
     }
@@ -85,22 +89,22 @@ void server::response(const std::string path, int code){
         totalBytesSent += bytesSent;
     }
     std::time_t time = std::time(nullptr); // get time 
-    std::cout << "Response: " << std::asctime(std::localtime(&time));
+    std::cout << "Response: " << std::asctime(std::localtime(&time)) << std::endl;
 }
 
 
 void server::requestHandler(const std::string req) {
     std::vector<std::string> parsed = requestParser(req);
 
-    std::cout << parsed.back() << std::endl;
-
     if (parsed.front() == "UNKNOWN" || parsed.back() == "favicon.ico") {
-        response("", 200);
+        response("favicon.ico", 200); // I do not have favicon.ico, therefore I ignore it 
     } else if (parsed.front() == "GET") {
-        if (fileSystem.find(parsed.back()) == fileSystem.end()) {
-            response("", 404);
+        if (parsed.back() == "") {
+            response(fileSystem["index.html"], 200); // index.html is a homepage  
+        } else if (fileSystem.find(parsed.back()) == fileSystem.end()) {
+            response("", 404); // not found 
         } else {
-            response(fileSystem[parsed.back()], 200);
+            response(fileSystem[parsed.back()], 200); // found
         }
     } 
 }
@@ -188,8 +192,8 @@ int server::startLocalServer() {
         return 1;
     } 
 
-    std::cout << "Listening on 127.0.0.1:8080" << std::endl;
-    std::cout << "Press CTRL+C to shut down the server" << std::endl;   
+    std::cout << "Listening on 127.0.0.1:8080\n";
+    std::cout << "Press CTRL+C to shut down the server\n\n";   
 
     int bytes = 0;
     while(true) { 
@@ -221,27 +225,6 @@ int server::startLocalServer() {
             requestHandler(request); 
         }
         closesocket(clientSock);
-        // std::string serverMsg = "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: ";
-        // std::string resp = "<html><h1>Hello</h1></html>";
-        // serverMsg.append(std::to_string(resp.size()));
-        // serverMsg.append("\n\n");
-        // serverMsg.append(resp);
-
-        // std::cout <<serverMsg << std::endl;
-
-        // int bytesSent = 0, totalBytesSent = 0;
-        // while (totalBytesSent < serverMsg.size()) {
-        //     bytesSent = send(clientSock, serverMsg.c_str()+totalBytesSent, serverMsg.size()-totalBytesSent, 0);
-        //     if (bytesSent == 0) {
-        //         std::cout << "Cannot send respond" << std::endl;
-        //         closesocket(clientSock);
-        //         closesocket(listenSock);
-        //         WSACleanup();
-        //         return 1;
-        //     }
-        //     totalBytesSent += bytesSent;
-        // }
-        // std::cout << "Sent respons to client" << std::endl;
     }
 
   
