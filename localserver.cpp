@@ -7,11 +7,12 @@ server::server() {
     hints.ai_socktype = SOCK_STREAM; // because we use TCP otherwise SOCK_DGRAM for UDP
     hints.ai_protocol = IPPROTO_TCP; // TCP 
     hints.ai_flags = AI_PASSIVE; // listening socket
-    loadFiles(fileSystem, "Files/HTML");
-    std::cout << "Construction fileSystem: " << fileSystem.size() << std::endl; 
+    loadFiles(fileSystem, "Files\\HTML");
+    std::cout << "Constructing fileSystem: " << fileSystem.size() << std::endl; 
 }
 
-void server::loadFiles(std::unordered_set<std::string> &fileSys, path targetDirectory) {
+
+void server::loadFiles(std::unordered_map<std::string, std::string> &fileSys, path targetDirectory) {
 
     // if doesn't exists -> create directory
     if (!exists(targetDirectory)) {
@@ -26,20 +27,122 @@ void server::loadFiles(std::unordered_set<std::string> &fileSys, path targetDire
             std::string fileName = "";
             std::string path = file.path().string();
             // get file name
-            for (size_t i = 0; i < path.size(); i++) {
-                if (path[i] == '/') {
+            for (std::size_t i = 0; i < path.size(); i++) {
+                if (path[i] == '\\') {
                     fileName = "";
                 } else {
                     fileName += path[i];
                 }
             }
-            fileSys.insert(fileName);
+            fileSys[fileName] = path; 
         }
     }
 }
 
 /*
 
+--------------------------------------------------------------------------------------------------
+
+*/
+
+void server::response(const std::string path, int code){
+    std::string serverMsg;
+    std::string page = "";
+    // if 404
+    if (code == 404) {
+        serverMsg = HTTP404;
+    } else if (code == 200) {
+        serverMsg = HTTP200;
+        if (path != "") {
+            std::ifstream read; // open file read only 
+            read.open(path);
+            if (!read.is_open()) {
+                serverMsg = HTTP404;
+            } else {
+                std::string line = "";
+                while (std::getline(read, line)) {
+                    std::cout << line << std::endl;
+                }
+                serverMsg.append(std::to_string(page.size())); 
+                serverMsg.append("\r\n\r\n");
+                serverMsg.append(page);
+            }
+            std::cout << page << std::endl;
+            read.close(); // close read file
+        }
+    }
+    // sent response 
+    int bytesSent = 0, totalBytesSent = 0;
+    while (totalBytesSent < serverMsg.size()) {
+        bytesSent = send(clientSock, serverMsg.c_str()+totalBytesSent, serverMsg.size()-totalBytesSent, 0);
+        if (bytesSent == 0) {
+            std::cout << "Cannot send respond" << std::endl;
+            closesocket(clientSock);
+            closesocket(listenSock);
+            WSACleanup();
+            return;
+        }
+        totalBytesSent += bytesSent;
+    }
+    std::time_t time = std::time(nullptr); // get time 
+    std::cout << "Response: " << std::asctime(std::localtime(&time));
+}
+
+
+void server::requestHandler(const std::string req) {
+    std::vector<std::string> parsed = requestParser(req);
+
+    std::cout << parsed.back() << std::endl;
+
+    if (parsed.front() == "UNKNOWN" || parsed.back() == "favicon.ico") {
+        response("", 200);
+    } else if (parsed.front() == "GET") {
+        if (fileSystem.find(parsed.back()) == fileSystem.end()) {
+            response("", 404);
+        } else {
+            response(fileSystem[parsed.back()], 200);
+        }
+    } 
+}
+
+
+std::vector<std::string> server::requestParser(const std::string req) {
+    std::vector<std::string> result; 
+
+    // define request type 
+    if (req.find("GET") != std::string::npos) {
+        result.push_back("GET");
+    } else if (req.find("POST") != std::string::npos) {
+        result.push_back("POST");
+    } else {
+        result.push_back("UNKNOWN");
+    }
+
+
+    std::string fileName = "";
+    bool start = false;
+    // get file path 
+    for (std::size_t i = 0; i < req.size(); i++) {
+        if (req[i] == ' ' && !start) {
+            start = true;
+        } else if (req[i] == ' ' && start) {
+            break;
+        } else {
+            if (req[i] == '/') {
+                fileName = "";
+            } else {
+                fileName += req[i];
+            }
+        }
+    }
+
+    result.push_back(fileName);
+    return result;
+}
+
+/*
+
+--------------------------------------------------------------------------------------------------
 
 */
 
@@ -107,33 +210,38 @@ int server::startLocalServer() {
         } else {
             recvBuff[bytes] = '\0';
             std::string request(recvBuff);
-            std::cout << "Received request:\n" << request << std::endl << requestHandler(request) << std::endl;
-        }
-
-        
-
-        std::string serverMsg = "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: ";
-        std::string resp = "<html><h1>Hello</h1></html>";
-        serverMsg.append(std::to_string(resp.size()));
-        serverMsg.append("\n\n");
-        serverMsg.append(resp);
-
-        std::cout <<serverMsg << std::endl;
-
-        int bytesSent = 0, totalBytesSent = 0;
-        while (totalBytesSent < serverMsg.size()) {
-            bytesSent = send(clientSock, serverMsg.c_str()+totalBytesSent, serverMsg.size()-totalBytesSent, 0);
-            if (bytesSent == 0) {
-                std::cout << "Cannot send respond" << std::endl;
-                closesocket(clientSock);
-                closesocket(listenSock);
-                WSACleanup();
-                return 1;
+            
+            char printRequest[32];
+            std::size_t found = request.find("\n");
+            if (found != std::string::npos) {
+                std::size_t len = request.copy(printRequest, found);
+                printRequest[len] = '\0';
             }
-            totalBytesSent += bytesSent;
+            std::cout << "Request: " << printRequest << std::endl;
+            requestHandler(request); 
         }
-        std::cout << "Sent respons to client" << std::endl;
         closesocket(clientSock);
+        // std::string serverMsg = "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: ";
+        // std::string resp = "<html><h1>Hello</h1></html>";
+        // serverMsg.append(std::to_string(resp.size()));
+        // serverMsg.append("\n\n");
+        // serverMsg.append(resp);
+
+        // std::cout <<serverMsg << std::endl;
+
+        // int bytesSent = 0, totalBytesSent = 0;
+        // while (totalBytesSent < serverMsg.size()) {
+        //     bytesSent = send(clientSock, serverMsg.c_str()+totalBytesSent, serverMsg.size()-totalBytesSent, 0);
+        //     if (bytesSent == 0) {
+        //         std::cout << "Cannot send respond" << std::endl;
+        //         closesocket(clientSock);
+        //         closesocket(listenSock);
+        //         WSACleanup();
+        //         return 1;
+        //     }
+        //     totalBytesSent += bytesSent;
+        // }
+        // std::cout << "Sent respons to client" << std::endl;
     }
 
   
@@ -141,50 +249,4 @@ int server::startLocalServer() {
     WSACleanup();
 
     return 0;
-}
-
-int server::requestHandler(const std::string req) {
-    std::vector<std::string> parsed = requestParser(req);
-    for (auto el : parsed) {
-        std::cout << el << std::endl;
-    }
-    return 0;
-}
-
-std::vector<std::string> server::requestParser(const std::string req) {
-    std::vector<std::string> result; 
-
-    // define request type 
-    if (req.find("GET") == 0) {
-        result.push_back("GET");
-    } else if (req.find("POST" == 0)) {
-        result.push_back("POST");
-    } else {
-        result.push_back("UNKNOWN");
-    }
-
-    std::string path = "";
-    bool start = false;
-    // get file path 
-    for (size_t i = 0; i < req.size(); i++) {
-        if (req[i] == ' ' && !start) {
-            start = true;
-        } else if (req[i] == ' ' && start) {
-            break;
-        } else {
-            path += req[i];
-        }
-    }
-
-    std::string fileName = "";
-    // get file name
-    for (size_t i = 0; i < path.size(); i++) {
-        if (path[i] == '/') {
-            fileName = "";
-        } else {
-            fileName += path[i];
-        }
-    }
-    result.push_back(fileName);
-    return result;
 }
