@@ -10,7 +10,7 @@ server::server() {
     loadFiles(fileSystem, "Files\\HTML");
     std::cout << "Constructing fileSystem: " << fileSystem.size() << std::endl; 
 
-    // remove comments if you want to see the contents of the container 
+    // //remove comments if you want to see the contents of the container 
     // for (auto el : fileSystem) {
     //     std::cout << el.first << " : " << el.second << std::endl;
     // }
@@ -58,22 +58,22 @@ void server::response(const std::string path, int code){
         serverMsg = HTTP404;
     } else if (code == 200) {
         serverMsg = HTTP200;
-        if (path != "favicon.ico") {
-            std::ifstream read; // open file read only 
-            read.open(path);
-            if (!read.is_open()) {
-                serverMsg = HTTP404;
-            } else {
-                std::string line = "";
-                while (std::getline(read, line)) {
-                    page.append(line+"\n");
-                }
-                serverMsg.append(std::to_string(page.size())); 
-                serverMsg.append("\r\n\r\n");
-                serverMsg.append(page);
+    }
+    if (path != "favicon.ico") {
+        std::ifstream read; // open file read only 
+        read.open(path);
+        if (!read.is_open()) {
+            serverMsg = HTTP404;
+        } else {
+            std::string line = "";
+            while (std::getline(read, line)) {
+                page.append(line+"\n");
             }
-            read.close(); // close read file
+            serverMsg.append(std::to_string(page.size())); 
+            serverMsg.append("\r\n\r\n");
+            serverMsg.append(page);
         }
+        read.close(); // close read file
     }
     // sent response 
     int bytesSent = 0, totalBytesSent = 0;
@@ -102,7 +102,7 @@ void server::requestHandler(const std::string req) {
         if (parsed.back() == "") {
             response(fileSystem["index.html"], 200); // index.html is a homepage  
         } else if (fileSystem.find(parsed.back()) == fileSystem.end()) {
-            response("", 404); // not found 
+            response(fileSystem["notFound.html"], 404); // not found 
         } else {
             response(fileSystem[parsed.back()], 200); // found
         }
