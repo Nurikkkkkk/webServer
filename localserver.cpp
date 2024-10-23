@@ -106,7 +106,15 @@ void server::requestHandler(const std::string req) {
         } else {
             response(fileSystem[parsed.back()], 200); // found
         }
-    } 
+    } else if (parsed.front() == "POST") {
+         if (parsed.back() == "") {
+            response(fileSystem["index.html"], 200); // index.html is a homepage  
+        } else if (fileSystem.find(parsed.back()) == fileSystem.end()) {
+            response(fileSystem["notFound.html"], 404); // not found 
+        } else {
+            response(fileSystem[parsed.back()], 200); // found
+        }
+    }
 }
 
 
@@ -129,7 +137,7 @@ std::vector<std::string> server::requestParser(const std::string req) {
     for (std::size_t i = 0; i < req.size(); i++) {
         if (req[i] == ' ' && !start) {
             start = true;
-        } else if (req[i] == ' ' && start) {
+        } else if ((req[i] == ' ' || req[i] == '?') && start) {
             break;
         } else {
             if (req[i] == '/') {
