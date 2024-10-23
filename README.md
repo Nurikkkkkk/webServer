@@ -1,0 +1,1 @@
+This is a C++ webserver based on WINSOCK 2 library. It works on localhost and retrieves web-pages from "Files" directory. This server can handle GET requests, but there is now working database yet. I have tried adding MySQL, but could not compile the code.
